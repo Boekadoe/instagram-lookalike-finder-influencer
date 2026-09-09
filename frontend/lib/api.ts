@@ -1,4 +1,5 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "https://instagram-lookalike-finder-influencer-production.up.railway.app";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
 
 export type RunStatus = {
