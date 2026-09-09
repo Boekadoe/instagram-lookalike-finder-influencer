@@ -95,17 +95,29 @@ export function filtersToParams(filters: Filters): Record<string, string> {
 }
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
-      ...(init?.headers || {}),
-    },
-  });
+  const url = `${API_URL}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
+        ...(init?.headers || {}),
+      },
+    });
+  } catch (err) {
+    // fetch() itself threw (network/DNS/CORS failure — no HTTP response at
+    // all). Log full detail to the console and surface the URL + API_KEY
+    // presence in the visible error so this is debuggable without devtools.
+    const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    console.error("[api] fetch() failed", { url, hasApiKey: Boolean(API_KEY), error: err });
+    throw new Error(`Kon de backend niet bereiken op ${url} (${detail}). Heeft je netwerk/browser dit domein geblokkeerd?`);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`API-fout ${res.status}: ${text}`);
+    console.error("[api] non-OK response", { url, status: res.status, body: text });
+    throw new Error(`API-fout ${res.status} op ${url}: ${text}`);
   }
   return res.json();
 }
