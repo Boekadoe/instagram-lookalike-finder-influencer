@@ -32,13 +32,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Instagram Lookalike Finder", lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 app.include_router(runs.router)
 
 
@@ -60,6 +53,21 @@ async def require_api_key(request: Request, call_next):
         if not provided or not secrets.compare_digest(provided, settings.api_key):
             return JSONResponse({"detail": "Ongeldige of ontbrekende X-API-Key header."}, status_code=401)
     return await call_next(request)
+
+
+# Registered *after* require_api_key, which makes it the outermost layer —
+# every response (including the 401 above) passes through it, so the
+# Access-Control-Allow-Origin header is always added. Registered the other
+# way around (as it was before), a rejected request came back with no CORS
+# header at all, which browsers report as an opaque "blocked by CORS
+# policy" instead of a readable 401 — very confusing to debug from the
+# frontend side.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
