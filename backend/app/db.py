@@ -5,15 +5,21 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import settings
 
+database_url = settings.database_url
+# Railway (and Heroku before it) sometimes hands out the old "postgres://"
+# scheme — SQLAlchemy 1.4+/2.0 only accepts "postgresql://".
+if database_url.startswith("postgres://"):
+    database_url = "postgresql://" + database_url[len("postgres://") :]
+
 # Make sure sqlite's parent directory exists (e.g. ./data/app.db).
-if settings.database_url.startswith("sqlite:///"):
-    db_path = settings.database_url.replace("sqlite:///", "", 1)
+if database_url.startswith("sqlite:///"):
+    db_path = database_url.replace("sqlite:///", "", 1)
     parent = os.path.dirname(db_path)
     if parent:
         os.makedirs(parent, exist_ok=True)
 
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, connect_args=connect_args)
+connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+engine = create_engine(database_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
