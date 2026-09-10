@@ -178,6 +178,13 @@ bevestiging aan de gebruiker voor je dit aanroept.
 { "total_before": 340, "duplicates_removed": 58, "unique_accounts": 282 }
 ```
 
+## Kant-en-klare TypeScript-client
+
+Voor een Next.js command center: [`examples/lookalike-finder-client.ts`](../examples/lookalike-finder-client.ts)
+(alle endpoints getypeerd, server-side) + [`examples/route-example.ts`](../examples/route-example.ts)
+(het juiste "fire-and-poll"-patroon — een run kan minuten duren, dus niet
+blokkerend aanroepen vanuit een Vercel Route Handler).
+
 ## Voorbeeldflow (curl)
 
 ```bash
