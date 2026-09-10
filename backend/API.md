@@ -4,16 +4,28 @@ Voor het command center (of elke andere externe client) om deze tool aan te
 roepen. Interactieve docs (Swagger UI, kan direct calls uitproberen) staan
 altijd op `<base-url>/docs` — deze pagina is de compacte referentie ernaast.
 
+Twee resource-groepen:
+- **`/runs`** — één zoekopdracht (seeds → kandidaten), de 2-fasen-flow hieronder.
+- **`/accounts`** — de permanente, gededupliceerde lijst van elk account dat
+  ooit is gevonden, over alle runs heen (zie [verderop](#cross-run-master-accountlijst)).
+
 ## Base URL & auth
 
 ```
-Base URL: <jouw cloudflared-tunnel-URL>   (lokaal: http://localhost:8000)
-Header:   X-API-Key: <waarde uit backend/.env API_KEY>
+Base URL: https://instagram-lookalike-finder-influencer-production.up.railway.app
+Header:   X-API-Key: <waarde uit de backend-service Variables in Railway>
 ```
+
+(Lokaal ontwikkelen: `http://localhost:8000`, geen key nodig tenzij `API_KEY`
+lokaal ook is ingesteld.)
 
 Elke request behalve `GET /health` vereist die header — zonder (of met een
 foute) key krijg je `401`. CSV-export via een gewone link kan geen custom
 header sturen; daar mag de key ook als querystring: `?api_key=...`.
+
+Command center roept dit **server-side** aan (geen browser-CORS-gedoe nodig);
+zet de base-URL en key als environment variables in het Vercel-project van
+het command center, en stuur de header bij elke call mee.
 
 ## Het model: 2 fases, async via polling
 
@@ -170,7 +182,7 @@ bevestiging aan de gebruiker voor je dit aanroept.
 
 ```bash
 KEY="..."
-BASE="https://<tunnel-url>"
+BASE="https://instagram-lookalike-finder-influencer-production.up.railway.app"
 
 # 1. Fase 1 starten
 RUN_ID=$(curl -s -X POST "$BASE/runs" -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
