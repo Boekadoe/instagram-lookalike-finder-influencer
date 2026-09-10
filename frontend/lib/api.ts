@@ -155,3 +155,28 @@ export function exportCsvUrl(id: string, params: Record<string, string>): string
   const qs = new URLSearchParams({ ...params, ...(API_KEY ? { api_key: API_KEY } : {}) }).toString();
   return `${API_URL}/runs/${id}/export.csv${qs ? `?${qs}` : ""}`;
 }
+
+// Cross-run master account list: every unique Instagram account the tool has
+// ever found, across every run — grows the more the tool gets used.
+export function listAccounts(params: Record<string, string>) {
+  const qs = new URLSearchParams(params).toString();
+  return api<Candidate[]>(`/accounts${qs ? `?${qs}` : ""}`);
+}
+
+export function exportAccountsCsvUrl(params: Record<string, string>): string {
+  const qs = new URLSearchParams({ ...params, ...(API_KEY ? { api_key: API_KEY } : {}) }).toString();
+  return `${API_URL}/accounts/export.csv${qs ? `?${qs}` : ""}`;
+}
+
+export type DeduplicateResult = {
+  total_before: number;
+  duplicates_removed: number;
+  unique_accounts: number;
+};
+
+// Permanently removes duplicate rows for the same Instagram account found
+// across multiple runs (keeps the freshest data + best score + merged
+// found_via). Irreversible — confirm with the user before calling.
+export function deduplicateAccounts() {
+  return api<DeduplicateResult>("/accounts/deduplicate", { method: "POST" });
+}

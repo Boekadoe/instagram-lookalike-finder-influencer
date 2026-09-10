@@ -65,7 +65,7 @@ def get_run(run_id: str, db: Session = Depends(get_db)):
 
 def _filtered_candidates(
     db: Session,
-    run_id: str,
+    run_id: str | None,
     min_followers: int | None,
     max_followers: int | None,
     countries: str | None,
@@ -73,7 +73,10 @@ def _filtered_candidates(
     business_only: bool,
     min_score: int | None,
 ) -> list[Candidate]:
-    q = db.query(Candidate).filter(Candidate.run_id == run_id)
+    """run_id=None matches across every run — used by the /accounts master list."""
+    q = db.query(Candidate)
+    if run_id is not None:
+        q = q.filter(Candidate.run_id == run_id)
     if min_followers is not None:
         q = q.filter(Candidate.followers >= min_followers)
     if max_followers is not None:

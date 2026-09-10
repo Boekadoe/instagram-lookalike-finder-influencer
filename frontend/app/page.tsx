@@ -89,6 +89,10 @@ export default function HomePage() {
             {loading ? "Bezig..." : "FIND LOOKALIKES"}
           </button>
         </form>
+
+        <Link href="/accounts" className="button button--ghost" style={{ width: "100%", textAlign: "center" }}>
+          Alle accounts bekijken (over alle runs)
+        </Link>
       </div>
 
       {recentRuns.length > 0 && (

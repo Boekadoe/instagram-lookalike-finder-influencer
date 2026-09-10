@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from .adapters import build_adapter
 from .config import settings
 from .db import init_db
-from .routers import runs
+from .routers import accounts, runs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Instagram Lookalike Finder", lifespan=lifespan)
 
 app.include_router(runs.router)
+app.include_router(accounts.router)
 
 
 # --- API-key auth ---

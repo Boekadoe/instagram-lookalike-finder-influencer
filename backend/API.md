@@ -136,6 +136,36 @@ Optioneel, alleen actief als `GOOGLE_SERVICE_ACCOUNT_JSON` is ingesteld
 
 `{"ok": true}`, geen auth nodig — voor uptime-checks.
 
+## Cross-run master accountlijst
+
+Elk gevonden account wordt permanent opgeslagen — deze endpoints geven een
+**gededupliceerde weergave over alle runs heen** (op `user_id`, Instagram's
+permanente ID, niet op username), zodat de lijst groeit naarmate de tool
+vaker gebruikt wordt in plaats van dat elke run een geïsoleerd resultaat is.
+
+### `GET /accounts` — alle unieke accounts, over elke run heen
+
+Zelfde query-params en response-vorm als `/runs/{id}/candidates`, maar
+zonder `run_id`-filter. Al automatisch gededupliceerd bij het opvragen (dit
+verandert niets aan de database) — bij een dubbel gevonden account blijft
+de meest recente profieldata staan, met de hoogste `similarity_score` die
+ooit is gezien en een samengevoegde `found_via` (alle seeds waarvia het
+account ooit is gevonden, over alle runs).
+
+### `GET /accounts/export.csv`
+
+CSV van dezelfde gededupliceerde lijst.
+
+### `POST /accounts/deduplicate` — permanent opruimen
+
+Verwijdert écht de dubbele database-rijen (behoudt per account dezelfde
+"beste" versie als hierboven beschreven). **Onomkeerbaar** — vraag
+bevestiging aan de gebruiker voor je dit aanroept.
+
+```json
+{ "total_before": 340, "duplicates_removed": 58, "unique_accounts": 282 }
+```
+
 ## Voorbeeldflow (curl)
 
 ```bash

@@ -22,6 +22,12 @@ class RunOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DeduplicateResult(BaseModel):
+    total_before: int
+    duplicates_removed: int
+    unique_accounts: int
+
+
 class BioLinkOut(BaseModel):
     title: str
     url: str
