@@ -95,6 +95,15 @@ class Candidate(Base):
     country_confidence: Mapped[int] = mapped_column(Integer, default=0)
     country_signals: Mapped[list] = mapped_column(JSON, default=list)
 
+    # Media engagement stats (sampled from recent posts)
+    avg_likes: Mapped[float | None] = mapped_column(Float, nullable=True)
+    avg_views: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_views: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reels_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avg_comments: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sponsored_ratio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    media_sampled_posts: Mapped[int] = mapped_column(Integer, default=0)
+
     # AI niche classification
     niche_primary: Mapped[str | None] = mapped_column(String, nullable=True)
     niche_secondary: Mapped[str | None] = mapped_column(String, nullable=True)

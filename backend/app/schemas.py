@@ -71,6 +71,14 @@ class CandidateOut(BaseModel):
     has_broadcast_channel: bool
     interop_messaging_user_fbid: str | None
 
+    avg_likes: float | None
+    avg_views: float | None
+    max_views: int | None
+    reels_count: int | None
+    avg_comments: float | None
+    sponsored_ratio: float | None
+    media_sampled_posts: int
+
     similarity_score: int
     seed_overlap: int
     found_via: list[str]

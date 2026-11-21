@@ -22,7 +22,7 @@ import logging
 import random
 from pathlib import Path
 
-from .base import BioLink, IGProfile, InstagramAdapter
+from .base import BioLink, IGMediaStats, IGProfile, InstagramAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -190,3 +190,38 @@ class AiograpiAdapter(InstagramAdapter):
             )
 
         return await self._throttled(call, label=f"user_info({user_id})")
+
+    async def get_media_stats(self, user_id: str, sample_size: int = 12) -> IGMediaStats | None:
+        async def call():
+            medias = await self.client.user_medias(int(user_id), amount=sample_size)
+            if not medias:
+                return IGMediaStats(sampled_posts=0)
+
+            likes = [m.like_count for m in medias if getattr(m, "like_count", None) is not None]
+            # view_count is set for video/reel posts; play_count is an alias some versions use.
+            # view_count is set for Video/IGTV; play_count is an optional alias.
+            views = [
+                v
+                for m in medias
+                for v in [(getattr(m, "view_count", None) or 0) + 0]  # view_count defaults to 0
+                if v and v > 0
+            ]
+            # clips_metadata is the most reliable reel indicator in aiograpi's types.
+            # product_type is documented as "igtv or feed" — not reliable for reels.
+            reels = [
+                m for m in medias
+                if getattr(m, "clips_metadata", None) is not None
+            ]
+            comments = [m.comment_count for m in medias if getattr(m, "comment_count", None) is not None]
+            sponsored = [m for m in medias if getattr(m, "is_paid_partnership", None) is True]
+            return IGMediaStats(
+                avg_likes=round(sum(likes) / len(likes), 1) if likes else None,
+                avg_views=round(sum(views) / len(views), 1) if views else None,
+                max_views=max(views) if views else None,
+                reels_count=len(reels),
+                avg_comments=round(sum(comments) / len(comments), 1) if comments else None,
+                sponsored_ratio=round(len(sponsored) / len(medias), 2) if medias else None,
+                sampled_posts=len(medias),
+            )
+
+        return await self._throttled(call, label=f"user_medias({user_id})")

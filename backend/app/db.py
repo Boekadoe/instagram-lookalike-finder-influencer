@@ -31,6 +31,38 @@ def init_db() -> None:
     from . import models  # noqa: F401  (ensure models are registered before create_all)
 
     Base.metadata.create_all(bind=engine)
+    _migrate_add_media_stats_columns()
+
+
+def _migrate_add_media_stats_columns() -> None:
+    """Add media-stats columns to existing databases that pre-date this feature."""
+    new_columns = [
+        ("avg_likes", "FLOAT"),
+        ("avg_views", "FLOAT"),
+        ("max_views", "INTEGER"),
+        ("reels_count", "INTEGER"),
+        ("avg_comments", "FLOAT"),
+        ("sponsored_ratio", "FLOAT"),
+        ("media_sampled_posts", "INTEGER DEFAULT 0"),
+    ]
+    with engine.connect() as conn:
+        for col, col_type in new_columns:
+            try:
+                if database_url.startswith("sqlite"):
+                    conn.execute(
+                        __import__("sqlalchemy").text(
+                            f"ALTER TABLE candidates ADD COLUMN {col} {col_type}"
+                        )
+                    )
+                else:
+                    conn.execute(
+                        __import__("sqlalchemy").text(
+                            f"ALTER TABLE candidates ADD COLUMN IF NOT EXISTS {col} {col_type}"
+                        )
+                    )
+                conn.commit()
+            except Exception:
+                conn.rollback()  # column already exists — ignore
 
 
 def get_db():

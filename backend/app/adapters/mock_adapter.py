@@ -8,7 +8,7 @@ credentials. Enable with USE_MOCK_ADAPTER=true.
 import hashlib
 import random
 
-from .base import BioLink, IGProfile, InstagramAdapter
+from .base import BioLink, IGMediaStats, IGProfile, InstagramAdapter
 
 _BIOS = [
     "Mama van twee | Amsterdam \U0001f1f3\U0001f1f1 | boekjes & knutselen",
@@ -50,6 +50,25 @@ class MockAdapter(InstagramAdapter):
         pool = [str(_stable_int(f"cand:{i}", 10_000, 99_999_999)) for i in range(60)]
         rng.shuffle(pool)
         return pool[: rng.randint(15, 30)]
+
+    async def get_media_stats(self, user_id: str, sample_size: int = 12) -> IGMediaStats | None:
+        rng = random.Random(f"media:{user_id}")
+        n = rng.randint(6, sample_size)
+        likes = [rng.randint(50, 5_000) for _ in range(n)]
+        has_video = rng.random() < 0.6
+        views = [rng.randint(500, 50_000) for _ in range(rng.randint(1, n))] if has_video else []
+        reels = rng.randint(0, max(1, n // 3))
+        comments = [rng.randint(2, 200) for _ in range(n)]
+        sponsored = rng.randint(0, max(1, n // 4))
+        return IGMediaStats(
+            avg_likes=round(sum(likes) / len(likes), 1),
+            avg_views=round(sum(views) / len(views), 1) if views else None,
+            max_views=max(views) if views else None,
+            reels_count=reels,
+            avg_comments=round(sum(comments) / len(comments), 1),
+            sponsored_ratio=round(sponsored / n, 2),
+            sampled_posts=n,
+        )
 
     async def get_profile(self, user_id: str) -> IGProfile | None:
         rng = random.Random(f"profile:{user_id}")

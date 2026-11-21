@@ -92,20 +92,21 @@ async def run_discovery(run_id: str, adapter: InstagramAdapter, session_factory)
             db.commit()
             return
 
-        # 4. Enrich full profiles for the shortlist.
+        # 4. Enrich full profiles + media stats for the shortlist.
         _set_progress(db, run, "enriching profiles", 0, len(top_ids))
-        profiles = await enrich_candidates(adapter, top_ids)
-        _set_progress(db, run, "enriching profiles", len(profiles), len(top_ids))
+        enriched = await enrich_candidates(adapter, top_ids)
+        _set_progress(db, run, "enriching profiles", len(enriched), len(top_ids))
 
         # 5. Classify country (a local heuristic, not AI) and persist each
         # candidate. Niche/matchmaking fields are left unset here — that's
         # phase 2's job (run_matchmaking), triggered separately.
-        _set_progress(db, run, "saving candidates", 0, len(profiles))
+        _set_progress(db, run, "saving candidates", 0, len(enriched))
         for i, user_id in enumerate(top_ids, start=1):
-            profile = profiles.get(user_id)
-            if profile is None:
+            result = enriched.get(user_id)
+            if result is None:
                 continue  # enrichment failed for this one; skip rather than store partial data
 
+            profile, media_stats = result
             country = classify_country(profile.biography, profile.external_url, profile.city_name)
             score = scored[user_id]
 
@@ -153,6 +154,13 @@ async def run_discovery(run_id: str, adapter: InstagramAdapter, session_factory)
                     country=country["country"],
                     country_confidence=country["confidence"],
                     country_signals=country["signals"],
+                    avg_likes=media_stats.avg_likes if media_stats else None,
+                    avg_views=media_stats.avg_views if media_stats else None,
+                    max_views=media_stats.max_views if media_stats else None,
+                    reels_count=media_stats.reels_count if media_stats else None,
+                    avg_comments=media_stats.avg_comments if media_stats else None,
+                    sponsored_ratio=media_stats.sponsored_ratio if media_stats else None,
+                    media_sampled_posts=media_stats.sampled_posts if media_stats else 0,
                     # niche_primary/niche_secondary/is_influencer/commercial_potential
                     # stay at their column defaults (None/False/0.0) until
                     # run_matchmaking() classifies this candidate.
@@ -160,10 +168,10 @@ async def run_discovery(run_id: str, adapter: InstagramAdapter, session_factory)
             )
             if i % 10 == 0:
                 db.commit()
-            _set_progress(db, run, "saving candidates", i, len(profiles))
+            _set_progress(db, run, "saving candidates", i, len(enriched))
 
         run.status = "discovered"
-        _set_progress(db, run, "discovered", len(profiles), len(profiles))
+        _set_progress(db, run, "discovered", len(enriched), len(enriched))
     except Exception as exc:  # noqa: BLE001 - a run failing must never crash the server
         logger.exception("discovery failed for run %s", run_id)
         db.rollback()

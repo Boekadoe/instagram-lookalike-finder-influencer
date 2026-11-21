@@ -9,15 +9,21 @@ account, but the ID never does.
 from collections import defaultdict
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Depends, Query
+import asyncio
+import logging
+import random
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from ..db import get_db
+from ..db import SessionLocal, get_db
 from ..export import candidates_to_csv
 from ..models import Candidate
 from ..schemas import CandidateOut, DeduplicateResult
 from .runs import _filtered_candidates
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -77,6 +83,101 @@ def export_accounts_csv(
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="boekadoe_accounts.csv"'},
     )
+
+
+class BackfillStatus:
+    """In-memory singleton to track backfill progress (one backfill at a time)."""
+    running: bool = False
+    total: int = 0
+    done: int = 0
+    errors: int = 0
+
+    def reset(self, total: int) -> None:
+        self.running = True
+        self.total = total
+        self.done = 0
+        self.errors = 0
+
+
+_backfill_status = BackfillStatus()
+
+
+async def _backfill_task(adapter, min_pause: float, max_pause: float) -> None:
+    """Fetch media stats for every Candidate that has no avg_likes yet.
+    Sequential per account, with a randomised human-paced pause between each."""
+    db = SessionLocal()
+    try:
+        candidates = db.query(Candidate).filter(Candidate.avg_likes.is_(None)).all()
+        _backfill_status.reset(len(candidates))
+        logger.info("Media stats backfill started: %d accounts to process", len(candidates))
+
+        for c in candidates:
+            try:
+                stats = await adapter.get_media_stats(c.user_id)
+                if stats:
+                    c.avg_likes = stats.avg_likes
+                    c.avg_views = stats.avg_views
+                    c.max_views = stats.max_views
+                    c.reels_count = stats.reels_count
+                    c.avg_comments = stats.avg_comments
+                    c.sponsored_ratio = stats.sponsored_ratio
+                    c.media_sampled_posts = stats.sampled_posts
+                    db.commit()
+            except Exception:
+                logger.warning("Backfill failed for @%s", c.username, exc_info=True)
+                _backfill_status.errors += 1
+
+            _backfill_status.done += 1
+            # Human-paced pause between accounts — different from the per-call
+            # throttle inside the adapter, so we get adapter throttle + this pause.
+            await asyncio.sleep(random.uniform(min_pause, max_pause))
+
+        logger.info(
+            "Media stats backfill done: %d/%d succeeded, %d errors",
+            _backfill_status.done - _backfill_status.errors,
+            _backfill_status.total,
+            _backfill_status.errors,
+        )
+    finally:
+        _backfill_status.running = False
+        db.close()
+
+
+@router.post("/backfill-media-stats")
+def start_backfill_media_stats(
+    background_tasks: BackgroundTasks,
+    request: Request,
+    min_pause: float = Query(5.0, description="Min seconden pauze tussen accounts"),
+    max_pause: float = Query(12.0, description="Max seconden pauze tussen accounts"),
+    db: Session = Depends(get_db),
+):
+    """Start een achtergrondtaak die voor elk account zonder media-stats
+    de stats ophaalt via Instagram. Slechts één backfill tegelijk."""
+    if _backfill_status.running:
+        return {
+            "started": False,
+            "reason": "Backfill al bezig",
+            "done": _backfill_status.done,
+            "total": _backfill_status.total,
+        }
+    pending = db.query(Candidate).filter(Candidate.avg_likes.is_(None)).count()
+    if pending == 0:
+        return {"started": False, "reason": "Alle accounts hebben al media-stats", "pending": 0}
+
+    adapter = request.app.state.instagram_adapter
+    background_tasks.add_task(_backfill_task, adapter, min_pause, max_pause)
+    return {"started": True, "pending": pending}
+
+
+@router.get("/backfill-media-stats/status")
+def backfill_status():
+    """Voortgang van een lopende backfill."""
+    return {
+        "running": _backfill_status.running,
+        "done": _backfill_status.done,
+        "total": _backfill_status.total,
+        "errors": _backfill_status.errors,
+    }
 
 
 @router.post("/deduplicate", response_model=DeduplicateResult)

@@ -72,6 +72,18 @@ class IGProfile:
     interop_messaging_user_fbid: str | None = None
 
 
+@dataclass
+class IGMediaStats:
+    avg_likes: float | None = None
+    avg_views: float | None = None
+    max_views: int | None = None
+    reels_count: int | None = None
+    avg_comments: float | None = None
+    sponsored_ratio: float | None = None  # 0.0–1.0 fraction of posts with is_paid_partnership=True
+    # Number of posts sampled to compute these stats (may be less than total posts).
+    sampled_posts: int = 0
+
+
 class InstagramAdapter(ABC):
     @abstractmethod
     async def login(self) -> None:
@@ -91,3 +103,9 @@ class InstagramAdapter(ABC):
     @abstractmethod
     async def get_profile(self, user_id: str) -> IGProfile | None:
         """Full profile enrichment for one candidate."""
+
+    @abstractmethod
+    async def get_media_stats(self, user_id: str, sample_size: int = 12) -> IGMediaStats | None:
+        """Fetch recent posts and compute engagement stats (avg likes, avg views,
+        max views, reels count). Returns None when the account is private or
+        the call fails. `sample_size` controls how many recent posts to fetch."""

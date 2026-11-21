@@ -54,6 +54,13 @@ export type Candidate = {
   threads_badge_label: string | null;
   has_broadcast_channel: boolean;
   interop_messaging_user_fbid: string | null;
+  avg_likes: number | null;
+  avg_views: number | null;
+  max_views: number | null;
+  reels_count: number | null;
+  avg_comments: number | null;
+  sponsored_ratio: number | null;
+  media_sampled_posts: number;
   similarity_score: number;
   seed_overlap: number;
   found_via: string[];
